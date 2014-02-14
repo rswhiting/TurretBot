@@ -1,0 +1,12 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+open(my $aim, "|./parrot aim") || die "Can't fork: $!";
+open(my $sound, "|./parrot sound") || die "Can't fork: $!";
+open(STDIN, "./targeting |") || die "Can't fork: $!";
+open(STDOUT, ">&", $aim);
+open(STDERR, ">&", $sound);
+
+exec "./automated";
