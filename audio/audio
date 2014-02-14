@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use List::Util 'shuffle';
+
+my %files;
+while ( my $cmd = <STDIN> ) {
+    chomp $cmd;
+    print "Audio command received for $cmd\n";
+    unless ( defined $files{$cmd} && @{ $files{$cmd} } ) {
+        $files{$cmd} = [ shuffle( glob "turretsounds/$cmd/*.wav" ) ];
+    }
+    system( "aplay", shift( $files{$cmd} ) );
+}
+
