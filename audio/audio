@@ -1,7 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env perl
 
-while read cmd; do
-    echo "Audio command received for $cmd"
-    aplay `find turretsounds/$cmd/ -type f | shuf -n 1`
-done
+use strict;
+use warnings;
+
+use List::Util 'shuffle';
+
+my %files;
+while ( my $cmd = <STDIN> ) {
+    chomp $cmd;
+    print "Audio command received for $cmd\n";
+    unless ( defined $files{$cmd} && @{ $files{$cmd} } ) {
+        $files{$cmd} = [ shuffle( glob "turretsounds/$cmd/*.wav" ) ];
+    }
+    system( "aplay", shift( $files{$cmd} ) );
+}
 
