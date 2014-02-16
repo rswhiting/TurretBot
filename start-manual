@@ -1,0 +1,11 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+#open(my $aim, "|./video/video.exe") || die "Can't fork: $!";
+open(my $sound, "|./audio/audio audio") || die "Can't fork: $!";
+#open(STDOUT, ">&", $aim);
+open(STDERR, ">&", $sound);
+
+exec "./controller/controller-manual";

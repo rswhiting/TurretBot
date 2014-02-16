@@ -1,0 +1,10 @@
+/test/OpenCVTutorial0/build/
+/test/OpenCVTutorial0/dist/
+/test/OpenCVTutorial1/build/
+/test/OpenCVTutorial1/dist/
+/test/OpenCVTutorial2/build/
+/test/OpenCVTutorial2/dist/
+/test/OpenCVTutorial3/build/
+/test/OpenCVTutorial3/dist/
+*.swp
+*.swo

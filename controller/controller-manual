@@ -1,0 +1,77 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Term::ReadKey;
+use Device::SerialPort;
+use Switch;
+
+print "You are in command of an advanced turret, act with wisdom:\n";
+print "\tq/Esc  Quit\n";
+print "\twasd   Up Left Down Right\n";
+print "\tf      Start/stop flywheel\n";
+print "\tspace  Fire\n";
+print "\ttre    Target search, target lost, error (audio)\n";
+print "\n";
+
+my $port = Device::SerialPort->new("/dev/ttyACM0");
+$port->databits(8);
+$port->baudrate(9600);
+$port->parity("none");
+$port->stopbits(1);
+
+commandLoop();
+
+# subroutine declarations
+
+sub commandLoop{
+    my $pitch = 90;
+    my $yaw = 90;
+    my $flywheel = 0;
+    my $exit = 0;
+    my $char;
+    ReadMode('cbreak');
+    while (!$exit) {
+        $char = ReadKey(0);
+        last unless defined $char;
+        switch(ord($char)){
+            case 119    {$pitch++; sendSerial("${pitch}p")}
+            case 115    {$pitch--; sendSerial("${pitch}p")}
+            case 97     {$yaw++; sendSerial("${yaw}y")}
+            case 100    {$yaw--; sendSerial("${yaw}y")}
+            case 114    {print STDERR "lost\n"} 
+            case 116    {print STDERR "search\n"}
+            case 102    {
+                if($flywheel){
+                    $flywheel = 0;
+                    sendSerial("h");
+                    print STDERR "shutdown\n"
+                }else{
+                    $flywheel = 1;
+                    sendSerial("s");
+                    print STDERR "active\n";
+                }
+            }
+            case 32     {
+                if(!$flywheel){
+                    print STDERR "error\n"
+                }else {
+                    sendSerial("f")
+                }
+            }
+            case [27,113] {print STDERR "shutdown\n"; $exit = 1;}
+            case 101    {print STDERR "error\n"} #this is just for kicks
+            else        {
+                print "invalid input " . ord($char) . "\n"; 
+                print STDERR "error\n";
+            }
+        }
+    }
+    ReadMode('normal'); 
+}
+
+sub sendSerial{
+    my ($command) = @_;
+    #send serial to arduino
+    $port->write($command);
+    print "SERIAL: $command\n";
+}
