@@ -16,7 +16,7 @@ void setup()
     servoY.attach(9);
     // Set controls to full speed
     flywheel.setSpeed(255);
-    fire.setSpeed(255);
+    fire.setSpeed(200);
     // Set all controls to release
     flywheel.run(RELEASE);
     fire.run(RELEASE);
@@ -68,7 +68,7 @@ void read(){
             case 'f':// fire
                 Serial.println("firing turret");
                 fire.run(FORWARD); 
-                delay(7500); // hold for 1/2 second
+                delay(750);
                 fire.run(RELEASE); 
                 v = 0;
                 break;

@@ -24,7 +24,7 @@ CLEAN_SUBPROJECTS=${CLEAN_SUBPROJECTS_${SUBPROJECTS}}
 
 
 # Project Name
-PROJECTNAME=OpenCVTutorial3
+PROJECTNAME=OpenCvTargeting
 
 # Active Configuration
 DEFAULTCONF=Debug

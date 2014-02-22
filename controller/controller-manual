@@ -34,8 +34,8 @@ sub commandLoop{
         $char = ReadKey(0);
         last unless defined $char;
         switch(ord($char)){
-            case 119    {$pitch++; sendSerial("${pitch}p")}
-            case 115    {$pitch--; sendSerial("${pitch}p")}
+            case 119    {$pitch--; sendSerial("${pitch}p")}
+            case 115    {$pitch++; sendSerial("${pitch}p")}
             case 97     {$yaw++; sendSerial("${yaw}y")}
             case 100    {$yaw--; sendSerial("${yaw}y")}
             case 114    {print STDERR "lost\n"} 
@@ -58,7 +58,11 @@ sub commandLoop{
                     sendSerial("f")
                 }
             }
-            case [27,113] {print STDERR "shutdown\n"; $exit = 1;}
+            case [27,113] {
+                sendSerial("h"); # just in case, halt flywheel
+                print STDERR "shutdown\n"; 
+                $exit = 1;
+            }
             case 101    {print STDERR "error\n"} #this is just for kicks
             else        {
                 print "invalid input " . ord($char) . "\n"; 

@@ -8,3 +8,5 @@
 /test/OpenCVTutorial3/dist/
 *.swp
 *.swo
+/test/OpenCvTargeting/dist/
+/test/OpenCvTargeting/build/

@@ -27,7 +27,7 @@ using namespace cv;
 //initial min and max HSV filter values.
 //these will be changed using trackbars
 int H_MIN = 0;
-int H_MAX = 256;
+int H_MAX = 180;
 int S_MIN = 0;
 int S_MAX = 256;
 int V_MIN = 0;
@@ -38,7 +38,7 @@ const int FRAME_HEIGHT = 480;
 //max number of objects to be detected in frame
 const int MAX_NUM_OBJECTS = 50;
 //minimum and maximum object area
-const int MIN_OBJECT_AREA = 20*20;//40 * 40;
+const int MIN_OBJECT_AREA = 15 * 15; //20*20;//40 * 40;
 const int MAX_OBJECT_AREA = FRAME_HEIGHT*FRAME_WIDTH / 1.5;
 //names that will appear at the top of each window
 const string windowName = "Original Image";
@@ -103,13 +103,14 @@ void drawObject(vector<Target> targets, Mat &frame) {
 }
 
 void morphOps(Mat &thresh) {
-
+    int erodeSize = 4;
+    int dilateSize = 5;
     //create structuring element that will be used to "dilate" and "erode" image.
     //the element chosen here is a 3px by 3px rectangle
 
-    Mat erodeElement = getStructuringElement(MORPH_RECT, Size(3, 3));
+    Mat erodeElement = getStructuringElement(MORPH_RECT, Size(erodeSize, erodeSize));
     //dilate with larger element so make sure object is nicely visible
-    Mat dilateElement = getStructuringElement(MORPH_RECT, Size(8, 8));
+    Mat dilateElement = getStructuringElement(MORPH_RECT, Size(dilateSize, dilateSize));
 
     erode(thresh, thresh, erodeElement);
     erode(thresh, thresh, erodeElement);
@@ -166,6 +167,18 @@ void trackFilteredObject(Mat threshold, Mat HSV, Mat &cameraFeed) {
     }
 }
 
+void drawCrosshairs(Mat &frame) {
+    // Vertical center
+    cv::line(frame, cv::Point(FRAME_WIDTH / 2, 100), cv::Point(FRAME_WIDTH / 2, FRAME_HEIGHT - 100), cv::Scalar(0, 255, 0));
+    // Horizontal center
+    cv::line(frame, cv::Point(FRAME_WIDTH / 2 - 50, FRAME_HEIGHT / 2), cv::Point(FRAME_WIDTH / 2 + 50, FRAME_HEIGHT / 2), cv::Scalar(0, 255, 0));
+    cv::putText(frame, "0 ft", cv::Point(FRAME_WIDTH / 2 + 50 + 5, FRAME_HEIGHT / 2 + 5), 1, 1, Scalar(0, 255, 0));
+    // Horizontal 20ft
+    cv::line(frame, cv::Point(FRAME_WIDTH / 2 - 25, FRAME_HEIGHT / 2 - 50), cv::Point(FRAME_WIDTH / 2 + 25, FRAME_HEIGHT / 2 - 50), cv::Scalar(0, 255, 0));
+    cv::putText(frame, "20 ft", cv::Point(FRAME_WIDTH / 2 + 25 + 5, FRAME_HEIGHT / 2 - 50 + 5), 1, 1, Scalar(0, 255, 0));
+
+}
+
 int main(int argc, char* argv[]) {
     //if we would like to calibrate our filter values, set to true.
     bool calibrationMode = true;
@@ -202,7 +215,7 @@ int main(int argc, char* argv[]) {
             imshow(windowName2, threshold);
             trackFilteredObject(threshold, HSV, cameraFeed);
         }
-
+        drawCrosshairs(cameraFeed);
         //show frames 
         //imshow(windowName2,threshold);
 
