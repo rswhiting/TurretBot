@@ -6,13 +6,15 @@ use warnings;
 use List::Util 'shuffle';
 
 my $base = $ARGV[0];
-my %files;
+my %files = ();
 while ( my $cmd = <STDIN> ) {
     chomp $cmd;
-    print "Audio command received for $cmd\n";
-    unless ( defined $files{$cmd} && @{ $files{$cmd} } ) {
-        $files{$cmd} = [ shuffle( glob "$base/turretsounds/$cmd/*.wav" ) ];
+    print "Audio command received for '$cmd'\n";
+    if(-d "$base/turretsounds/$cmd"){
+        unless ( defined $files{$cmd} && @{ $files{$cmd} } ) {
+            $files{$cmd} = [ shuffle( glob "$base/turretsounds/$cmd/*.wav" ) ];
+        }
+        system( "aplay", shift( $files{$cmd} ) );
     }
-    system( "aplay", shift( $files{$cmd} ) );
 }
 
