@@ -18,12 +18,16 @@
 #include <sstream>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <highgui.h>
 #include <cv.h>
 
 using namespace std;
 using namespace cv;
+//default capture width and height
+const int FRAME_WIDTH = 640;
+const int FRAME_HEIGHT = 480;
 //initial min and max HSV filter values.
 //these will be changed using trackbars
 int H_MIN = 0;
@@ -32,9 +36,10 @@ int S_MIN = 0;
 int S_MAX = 256;
 int V_MIN = 0;
 int V_MAX = 256;
-//default capture width and height
-const int FRAME_WIDTH = 640;
-const int FRAME_HEIGHT = 480;
+int CROSS_X = FRAME_WIDTH / 2;
+int CROSS_Y = FRAME_HEIGHT / 2;
+//saved last output
+string lastTargets = "";
 //max number of objects to be detected in frame
 const int MAX_NUM_OBJECTS = 50;
 //minimum and maximum object area
@@ -46,30 +51,49 @@ const string windowName1 = "HSV Image";
 const string windowName2 = "Thresholded Image";
 const string windowName3 = "After Morphological Operations";
 const string trackbarWindowName = "Trackbars";
+string trackbarSaveFile = "trackbars.conf";
 
 void on_trackbar(int, void*) {//This function gets called whenever a
-    // trackbar position is changed
-
-
-
-
-
+    // save settings
+    ofstream conf;
+    conf.open(trackbarSaveFile.data());
+    conf << H_MIN << "\n";
+    conf << H_MAX << "\n";
+    conf << S_MIN << "\n";
+    conf << S_MAX << "\n";
+    conf << V_MIN << "\n";
+    conf << V_MAX << "\n";
+    conf << CROSS_X << "\n";
+    conf << CROSS_Y << "\n";
+    conf.close();
 }
 
 string intToString(int number) {
-
-
     std::stringstream ss;
     ss << number;
     return ss.str();
 }
 
+void loadTrackbars() {
+    // load settings
+    ifstream conf;
+    conf.open(trackbarSaveFile.data());
+    conf >> H_MIN;
+    conf >> H_MAX;
+    conf >> S_MIN;
+    conf >> S_MAX;
+    conf >> V_MIN;
+    conf >> V_MAX;
+    conf >> CROSS_X;
+    conf >> CROSS_Y;
+    conf.close();
+}
+
 void createTrackbars() {
     //create window for trackbars
-
-
     namedWindow(trackbarWindowName, 0);
     //create memory to store trackbar name on window
+    loadTrackbars();
     char TrackbarName[50];
     sprintf(TrackbarName, "H_MIN", H_MIN);
     sprintf(TrackbarName, "H_MAX", H_MAX);
@@ -77,6 +101,8 @@ void createTrackbars() {
     sprintf(TrackbarName, "S_MAX", S_MAX);
     sprintf(TrackbarName, "V_MIN", V_MIN);
     sprintf(TrackbarName, "V_MAX", V_MAX);
+    sprintf(TrackbarName, "CROSS_X", CROSS_X);
+    sprintf(TrackbarName, "CROSS_Y", CROSS_Y);
     //create trackbars and insert them into window
     //3 parameters are: the address of the variable that is changing when the trackbar is moved(eg.H_LOW),
     //the max value the trackbar can move (eg. H_HIGH), 
@@ -88,8 +114,8 @@ void createTrackbars() {
     createTrackbar("S_MAX", trackbarWindowName, &S_MAX, S_MAX, on_trackbar);
     createTrackbar("V_MIN", trackbarWindowName, &V_MIN, V_MAX, on_trackbar);
     createTrackbar("V_MAX", trackbarWindowName, &V_MAX, V_MAX, on_trackbar);
-
-
+    createTrackbar("CROSS_X", trackbarWindowName, &CROSS_X, FRAME_WIDTH, on_trackbar);
+    createTrackbar("CROSS_Y", trackbarWindowName, &CROSS_Y, FRAME_HEIGHT, on_trackbar);
 }
 
 void drawObject(vector<Target> targets, Mat &frame) {
@@ -97,8 +123,35 @@ void drawObject(vector<Target> targets, Mat &frame) {
         int x = targets[i].getX();
         int y = targets[i].getY();
         cv::circle(frame, cv::Point(x, y), 10, cv::Scalar(0, 0, 255));
-        string text = "Target: " + intToString(x) + " , " + intToString(y);
-        cv::putText(frame, text, cv::Point(x, y + 20), 1, 1, Scalar(0, 255, 0));
+        string text = "[" + intToString(x) + " " + intToString(y) + "]";
+        cv::putText(frame, text, cv::Point(x - 40, y + 25), 1, 1, Scalar(0, 0, 255));
+    }
+}
+
+void drawCrosshairs(Mat &frame) {
+    // Vertical center
+    cv::line(frame, cv::Point(CROSS_X, CROSS_Y + 100), cv::Point(CROSS_X, CROSS_Y - 100), cv::Scalar(0, 255, 0));
+    // Horizontal center
+    cv::line(frame, cv::Point(CROSS_X - 50, CROSS_Y), cv::Point(CROSS_X + 50, CROSS_Y), cv::Scalar(0, 255, 0));
+    // Square
+    cv::rectangle(frame, cv::Point(CROSS_X - 10, CROSS_Y - 10), cv::Point(CROSS_X + 10, CROSS_Y + 10), cv::Scalar(0, 255, 0), 1, 1, 0);
+    // tag
+    string text = "[" + intToString(CROSS_X) + " " + intToString(CROSS_Y) + "]";
+    cv::putText(frame, text, cv::Point(CROSS_X + 10, CROSS_Y - 20), 1, 1, Scalar(0, 255, 0));
+}
+
+void printTargets(vector<Target> targets) {
+    string output = "" + intToString(CROSS_X) + " " + intToString(CROSS_Y);
+    for (int i = 0; i < targets.size(); i++) {
+        int x = targets[i].getX();
+        int y = targets[i].getY();
+        output += " " + intToString(x) + " " + intToString(y);
+    }
+    output += "\n";
+    // only send changes
+    if (lastTargets != output) {
+        lastTargets = output;
+        cout << output;
     }
 }
 
@@ -115,12 +168,8 @@ void morphOps(Mat &thresh) {
     erode(thresh, thresh, erodeElement);
     erode(thresh, thresh, erodeElement);
 
-
     dilate(thresh, thresh, dilateElement);
     dilate(thresh, thresh, dilateElement);
-
-
-
 }
 
 void trackFilteredObject(Mat threshold, Mat HSV, Mat &cameraFeed) {
@@ -161,37 +210,21 @@ void trackFilteredObject(Mat threshold, Mat HSV, Mat &cameraFeed) {
             if (objectFound == true) {
                 //draw object location on screen
                 drawObject(targets, cameraFeed);
+                printTargets(targets);
             }
 
         } else putText(cameraFeed, "TOO MUCH NOISE! ADJUST FILTER", Point(0, 50), 1, 2, Scalar(0, 0, 255), 2);
     }
 }
 
-void drawCrosshairs(Mat &frame) {
-    // Vertical center
-    cv::line(frame, cv::Point(FRAME_WIDTH / 2, 100), cv::Point(FRAME_WIDTH / 2, FRAME_HEIGHT - 100), cv::Scalar(0, 255, 0));
-    // Horizontal center
-    cv::line(frame, cv::Point(FRAME_WIDTH / 2 - 50, FRAME_HEIGHT / 2), cv::Point(FRAME_WIDTH / 2 + 50, FRAME_HEIGHT / 2), cv::Scalar(0, 255, 0));
-    cv::putText(frame, "0 ft", cv::Point(FRAME_WIDTH / 2 + 50 + 5, FRAME_HEIGHT / 2 + 5), 1, 1, Scalar(0, 255, 0));
-    // Horizontal 20ft
-    cv::line(frame, cv::Point(FRAME_WIDTH / 2 - 25, FRAME_HEIGHT / 2 - 50), cv::Point(FRAME_WIDTH / 2 + 25, FRAME_HEIGHT / 2 - 50), cv::Scalar(0, 255, 0));
-    cv::putText(frame, "20 ft", cv::Point(FRAME_WIDTH / 2 + 25 + 5, FRAME_HEIGHT / 2 - 50 + 5), 1, 1, Scalar(0, 255, 0));
-
-}
-
 int main(int argc, char* argv[]) {
-    //if we would like to calibrate our filter values, set to true.
-    bool calibrationMode = true;
-
     //Matrix to store each frame of the webcam feed
     Mat cameraFeed;
     Mat threshold;
     Mat HSV;
 
-    if (calibrationMode) {
-        //create slider bars for HSV filtering
-        createTrackbars();
-    }
+    //create slider bars for HSV filtering
+    createTrackbars();
     //video capture object to acquire webcam feed
     VideoCapture capture;
     //open capture object at location zero (default location for webcam)
@@ -207,14 +240,13 @@ int main(int argc, char* argv[]) {
         //convert frame from BGR to HSV colorspace
         cvtColor(cameraFeed, HSV, COLOR_BGR2HSV);
 
-        if (calibrationMode == true) {
-            //if in calibration mode, we track objects based on the HSV slider values.
-            cvtColor(cameraFeed, HSV, COLOR_BGR2HSV);
-            inRange(HSV, Scalar(H_MIN, S_MIN, V_MIN), Scalar(H_MAX, S_MAX, V_MAX), threshold);
-            morphOps(threshold);
-            imshow(windowName2, threshold);
-            trackFilteredObject(threshold, HSV, cameraFeed);
-        }
+        //track objects based on the HSV slider values.
+        cvtColor(cameraFeed, HSV, COLOR_BGR2HSV);
+        inRange(HSV, Scalar(H_MIN, S_MIN, V_MIN), Scalar(H_MAX, S_MAX, V_MAX), threshold);
+        morphOps(threshold);
+        imshow(windowName2, threshold);
+        trackFilteredObject(threshold, HSV, cameraFeed);
+
         drawCrosshairs(cameraFeed);
         //show frames 
         //imshow(windowName2,threshold);
@@ -222,16 +254,9 @@ int main(int argc, char* argv[]) {
         imshow(windowName, cameraFeed);
         //imshow(windowName1,HSV);
 
-
         //delay 30ms so that screen can refresh.
         //image will not appear without this waitKey() command
         waitKey(30);
     }
-
-
-
-
-
-
     return 0;
 }
