@@ -1,0 +1,133 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Term::ReadKey;
+use Device::SerialPort;
+use Switch;
+use Data::Dumper;
+
+print "The automated system is in full command of an advanced turret, let's hope the programmer didn't hold any grudges\n";
+
+my $port = Device::SerialPort->new("/dev/ttyACM0");
+$port->databits(8);
+$port->baudrate(9600);
+$port->parity("none");
+$port->stopbits(1);
+my $pitch = 90;
+my $yaw = 90;
+my $flywheel = 0;
+
+commandLoop();
+
+# subroutine declarations
+
+sub commandLoop{
+    # Target variables
+    my $shotsRemaining = 15;
+    my $expectedTargets = 3;
+    my $shotsPerTarget = 5;
+    # Other ones
+    my $margin = 10;
+    my $lastTargetLoc = {x=>0,y=>0};
+    my $isLost = 0;
+    ReadMode('cbreak');
+    $flywheel = 1;
+    sendSerial("s");
+    while ($shotsRemaining > 0) {
+        my @targets = readTargets();
+        if(scalar @targets != 4){
+            if(!$isLost){
+                print STDERR "lost\n";
+                $isLost = 1;
+            }
+            sleepMs(250);
+        }else{
+            if($isLost){
+                print STDERR "active\n";
+                $isLost = 0;
+            }
+            #print "found 3 targets:\n";
+            #foreach my $t (@targets){
+            #    print $t->{x} . ", " . $t->{y} . "\n";
+            #}
+            my $targetIndex = (($expectedTargets - 1) - int(($shotsRemaining - 1) / $shotsPerTarget)) + 1;
+            my $target = $targets[$targetIndex];
+            print "target selected: " . $target->{x} . ", " . $target->{y} . "\n";
+            if(withinMargin($margin, $target, $targets[0])){
+                # stabalize
+                if(withinMargin($margin, $target, $lastTargetLoc)){
+                    fire();
+                    $shotsRemaining--;
+                }else{
+                    sleepMs(250); # wait to verify it is actually stable
+                }
+            }else{
+                adjustAim($targets[0], $target);
+                sleepMs(500);
+            }
+        }
+    }
+    $flywheel = 0;
+    sendSerial("h");
+    print STDERR "shutdown\n";
+    ReadMode('normal'); 
+}
+
+sub fire {
+    if(!$flywheel){
+        print STDERR "error\n"
+    }else {
+        sendSerial("f")
+    }
+}
+
+sub adjustAim {
+    #print STDERR "search\n";
+    my ($c, $t) = @_;
+    my $vidToServoRatio = 10;
+    #print Dumper(@_);
+    my $xDiff = $t->{x} - $c->{x};
+    my $yDiff = $t->{y} - $c->{y};
+    $pitch += int($yDiff / $vidToServoRatio);
+    $yaw += int($xDiff / $vidToServoRatio);
+    sendSerial("${pitch}p");
+    sendSerial("${yaw}y");
+}
+
+sub withinMargin {
+    my ($margin, $a, $b) = @_;
+    if(abs($a->{x} - $b->{x}) <= $margin && abs($a->{y} - $b->{y}) <= $margin){
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+sub readTargets{
+    my @targets = ();
+    local $/; # enables "slurp" mode (see perldoc.perl.org/perlvar.html INPUT_RECORD_SEPARATOR)
+    my $line = (split(/\n/, <STDIN>))[-1]; #split by endlines and grab the last
+    if(!defined($line)){ 
+        return @targets;
+    }
+    my @nums = split(/ /, $line);
+    for(my $i = 0; $i < scalar @nums; $i += 2){
+        $targets[$i / 2]{x} = $nums[$i];
+        $targets[$i / 2]{y} = $nums[$i + 1];
+    }
+    #print Dumper(@targets);
+    return @targets;
+}
+
+sub sendSerial{
+    my ($command) = @_;
+    #send serial to arduino
+    $port->write($command);
+    print "SERIAL: $command\n";
+}
+
+sub sleepMs{
+    my ($ms) = @_;
+    select(undef, undef, undef, $ms / 1000);
+}
+
