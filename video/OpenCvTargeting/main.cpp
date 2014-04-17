@@ -41,22 +41,27 @@ int CROSS_Y = FRAME_HEIGHT / 2;
 //saved last output
 string lastTargets = "";
 //max number of objects to be detected in frame
-const int MAX_NUM_OBJECTS = 50;
+const int MAX_NUM_OBJECTS = 10;
 //minimum and maximum object area
-const int MIN_OBJECT_AREA = 15 * 15; //20*20;//40 * 40;
+int MIN_OBJECT = 15;
+int ERODE_SIZE = 4;
+int DILATE_SIZE = 5;
 const int MAX_OBJECT_AREA = FRAME_HEIGHT*FRAME_WIDTH / 1.5;
 //names that will appear at the top of each window
 const string windowName = "Original Image";
 const string windowName1 = "HSV Image";
 const string windowName2 = "Thresholded Image";
-const string windowName3 = "After Morphological Operations";
+const string windowName3 = "Overlay";
 const string trackbarWindowName = "Trackbars";
 string trackbarSaveFile = "trackbars.conf";
 
-void on_trackbar(int, void*) {//This function gets called whenever a
+void onTrackbar(int, void*) {//This function gets called whenever a
     // save settings
     ofstream conf;
     conf.open(trackbarSaveFile.data());
+    conf << MIN_OBJECT << "\n";
+    conf << ERODE_SIZE << "\n";
+    conf << DILATE_SIZE << "\n";
     conf << H_MIN << "\n";
     conf << H_MAX << "\n";
     conf << S_MIN << "\n";
@@ -78,6 +83,9 @@ void loadTrackbars() {
     // load settings
     ifstream conf;
     conf.open(trackbarSaveFile.data());
+    conf >> MIN_OBJECT;
+    conf >> ERODE_SIZE;
+    conf >> DILATE_SIZE;
     conf >> H_MIN;
     conf >> H_MAX;
     conf >> S_MIN;
@@ -94,28 +102,20 @@ void createTrackbars() {
     namedWindow(trackbarWindowName, 0);
     //create memory to store trackbar name on window
     loadTrackbars();
-    char TrackbarName[50];
-    sprintf(TrackbarName, "H_MIN", H_MIN);
-    sprintf(TrackbarName, "H_MAX", H_MAX);
-    sprintf(TrackbarName, "S_MIN", S_MIN);
-    sprintf(TrackbarName, "S_MAX", S_MAX);
-    sprintf(TrackbarName, "V_MIN", V_MIN);
-    sprintf(TrackbarName, "V_MAX", V_MAX);
-    sprintf(TrackbarName, "CROSS_X", CROSS_X);
-    sprintf(TrackbarName, "CROSS_Y", CROSS_Y);
     //create trackbars and insert them into window
-    //3 parameters are: the address of the variable that is changing when the trackbar is moved(eg.H_LOW),
-    //the max value the trackbar can move (eg. H_HIGH), 
-    //and the function that is called whenever the trackbar is moved(eg. on_trackbar)
-    //                                  ---->    ---->     ---->      
-    createTrackbar("H_MIN", trackbarWindowName, &H_MIN, H_MAX, on_trackbar);
-    createTrackbar("H_MAX", trackbarWindowName, &H_MAX, H_MAX, on_trackbar);
-    createTrackbar("S_MIN", trackbarWindowName, &S_MIN, S_MAX, on_trackbar);
-    createTrackbar("S_MAX", trackbarWindowName, &S_MAX, S_MAX, on_trackbar);
-    createTrackbar("V_MIN", trackbarWindowName, &V_MIN, V_MAX, on_trackbar);
-    createTrackbar("V_MAX", trackbarWindowName, &V_MAX, V_MAX, on_trackbar);
-    createTrackbar("CROSS_X", trackbarWindowName, &CROSS_X, FRAME_WIDTH, on_trackbar);
-    createTrackbar("CROSS_Y", trackbarWindowName, &CROSS_Y, FRAME_HEIGHT, on_trackbar);
+    createTrackbar("Min Object", trackbarWindowName, &MIN_OBJECT, 50, onTrackbar);
+    createTrackbar("Erode", trackbarWindowName, &ERODE_SIZE, 20, onTrackbar);
+    createTrackbar("Dilate", trackbarWindowName, &DILATE_SIZE, 20, onTrackbar);
+    createTrackbar("Erode", trackbarWindowName, &ERODE_SIZE, 20, onTrackbar);
+    createTrackbar("Dilate", trackbarWindowName, &DILATE_SIZE, 20, onTrackbar);
+    createTrackbar("H min", trackbarWindowName, &H_MIN, 180, onTrackbar);
+    createTrackbar("H max", trackbarWindowName, &H_MAX, 180, onTrackbar);
+    createTrackbar("S min", trackbarWindowName, &S_MIN, 256, onTrackbar);
+    createTrackbar("S max", trackbarWindowName, &S_MAX, 256, onTrackbar);
+    createTrackbar("V min", trackbarWindowName, &V_MIN, 256, onTrackbar);
+    createTrackbar("V max", trackbarWindowName, &V_MAX, 256, onTrackbar);
+    createTrackbar("Cross X", trackbarWindowName, &CROSS_X, FRAME_WIDTH, onTrackbar);
+    createTrackbar("Cross Y", trackbarWindowName, &CROSS_Y, FRAME_HEIGHT, onTrackbar);
 }
 
 void drawObject(vector<Target> targets, Mat &frame) {
@@ -156,14 +156,15 @@ void printTargets(vector<Target> targets) {
 }
 
 void morphOps(Mat &thresh) {
-    int erodeSize = 4;
-    int dilateSize = 5;
+    // for safety, reset broken erode and dilate values
+    if (ERODE_SIZE == 0)
+        ERODE_SIZE = 1;
+    if (DILATE_SIZE == 0)
+        DILATE_SIZE = 1;
     //create structuring element that will be used to "dilate" and "erode" image.
-    //the element chosen here is a 3px by 3px rectangle
-
-    Mat erodeElement = getStructuringElement(MORPH_RECT, Size(erodeSize, erodeSize));
+    Mat erodeElement = getStructuringElement(MORPH_RECT, Size(ERODE_SIZE, ERODE_SIZE));
     //dilate with larger element so make sure object is nicely visible
-    Mat dilateElement = getStructuringElement(MORPH_RECT, Size(dilateSize, dilateSize));
+    Mat dilateElement = getStructuringElement(MORPH_RECT, Size(DILATE_SIZE, DILATE_SIZE));
 
     erode(thresh, thresh, erodeElement);
     erode(thresh, thresh, erodeElement);
@@ -197,14 +198,15 @@ void trackFilteredObject(Mat threshold, Mat HSV, Mat &cameraFeed) {
                 //if the area is the same as the 3/2 of the image size, probably just a bad filter
                 //we only want the object with the largest area so we safe a reference area each
                 //iteration and compare it to the area in the next iteration.
-                if (area > MIN_OBJECT_AREA) {
+                if (area > MIN_OBJECT * MIN_OBJECT) {
                     Target target;
                     target.setX(moment.m10 / area);
                     target.setY(moment.m01 / area);
                     targets.push_back(target);
                     objectFound = true;
-                } else
+                } else {
                     objectFound = false;
+                }
             }
             //let user know you found an object
             if (objectFound == true) {
@@ -213,15 +215,35 @@ void trackFilteredObject(Mat threshold, Mat HSV, Mat &cameraFeed) {
                 printTargets(targets);
             }
 
-        } else putText(cameraFeed, "TOO MUCH NOISE! ADJUST FILTER", Point(0, 50), 1, 2, Scalar(0, 0, 255), 2);
+        } else {
+            putText(cameraFeed, "Sensory overload. Adjust filters.", Point(0, 50), 1, 2, Scalar(0, 0, 255), 2);
+        }
     }
+}
+
+void generateOverlay(Mat camera, Mat threshold, Mat &merged) {
+    merged = camera.clone();
+    double alpha = 0.75;
+    for (int y = 0; y < camera.rows; y++)
+        for (int x = 0; x < camera.cols; x++) {
+            if (threshold.at<Vec3b>(y, x / 3)[0] > 0 && threshold.at<Vec3b>(y, x / 3)[1] > 0 && threshold.at<Vec3b>(y, x / 3)[2] > 0) {
+//                merged.at<Vec3b>(y, x)[0] = (1 - alpha) * camera.at<Vec3b>(y, x)[0] + (alpha * threshold.at<Vec3b>(y, x / 3)[0]);
+//                merged.at<Vec3b>(y, x)[1] = (1 - alpha) * camera.at<Vec3b>(y, x)[1] + (alpha * threshold.at<Vec3b>(y, x / 3)[1]);
+                merged.at<Vec3b>(y, x)[2] = (1 - alpha) * camera.at<Vec3b>(y, x)[2] + (alpha * threshold.at<Vec3b>(y, x / 3)[2]);
+            } else {
+                merged.at<Vec3b>(y, x)[0] = camera.at<Vec3b>(y, x)[0];
+                merged.at<Vec3b>(y, x)[1] = camera.at<Vec3b>(y, x)[1];
+                merged.at<Vec3b>(y, x)[2] = camera.at<Vec3b>(y, x)[2];
+            }
+        }
 }
 
 int main(int argc, char* argv[]) {
     //Matrix to store each frame of the webcam feed
-    Mat cameraFeed;
-    Mat threshold;
-    Mat HSV;
+    Mat cameraFeedMatrix;
+    Mat thresholdFeedMatrix;
+    Mat hsvMatrix;
+    Mat mergedFeedMatrix;
 
     //create slider bars for HSV filtering
     createTrackbars();
@@ -236,26 +258,21 @@ int main(int argc, char* argv[]) {
     //all of our operations will be performed within this loop
     while (1) {
         //store image to matrix
-        capture.read(cameraFeed);
+        capture.read(cameraFeedMatrix);
         //convert frame from BGR to HSV colorspace
-        cvtColor(cameraFeed, HSV, COLOR_BGR2HSV);
+        cvtColor(cameraFeedMatrix, hsvMatrix, COLOR_BGR2HSV);
 
-        //track objects based on the HSV slider values.
-        cvtColor(cameraFeed, HSV, COLOR_BGR2HSV);
-        inRange(HSV, Scalar(H_MIN, S_MIN, V_MIN), Scalar(H_MAX, S_MAX, V_MAX), threshold);
-        morphOps(threshold);
-        imshow(windowName2, threshold);
-        trackFilteredObject(threshold, HSV, cameraFeed);
+        // track objects
+        inRange(hsvMatrix, Scalar(H_MIN, S_MIN, V_MIN), Scalar(H_MAX, S_MAX, V_MAX), thresholdFeedMatrix);
+        morphOps(thresholdFeedMatrix);
+        trackFilteredObject(thresholdFeedMatrix, hsvMatrix, cameraFeedMatrix);
+        drawCrosshairs(cameraFeedMatrix);
+        generateOverlay(cameraFeedMatrix, thresholdFeedMatrix, mergedFeedMatrix);
 
-        drawCrosshairs(cameraFeed);
-        //show frames 
-        //imshow(windowName2,threshold);
-
-        imshow(windowName, cameraFeed);
-        //imshow(windowName1,HSV);
-
-        //delay 30ms so that screen can refresh.
-        //image will not appear without this waitKey() command
+        // display feeds
+//        imshow(windowName2, thresholdFeedMatrix);
+//        imshow(windowName, cameraFeedMatrix);
+        imshow(windowName3, mergedFeedMatrix);
         waitKey(30);
     }
     return 0;
