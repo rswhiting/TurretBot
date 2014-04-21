@@ -3,10 +3,10 @@
 use strict;
 use warnings;
 
-open(my $aim, "|./parrot aim") || die "Can't fork: $!";
-open(my $sound, "|./parrot sound") || die "Can't fork: $!";
-open(STDIN, "./targeting |") || die "Can't fork: $!";
-open(STDOUT, ">&", $aim);
+#open(my $controller, "|../Pipes/controller") || die "Can't fork: $!";
+open(my $controller, "|./controller/controller-automated") || die "Can't fork: $!";
+open(my $sound, "|./audio/audio audio") || die "Can't fork: $!";
+open(STDOUT, ">&", $controller);
 open(STDERR, ">&", $sound);
 
-exec "./automated";
+exec "./video/video";

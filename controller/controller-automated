@@ -32,7 +32,8 @@ sub commandLoop{
     my $isLost = 0;
     ReadMode('cbreak');
     $flywheel = 1;
-    sendSerial("s");
+    print "Start up the flywheel\n";
+    sendSerial("f");
     while ($shotsRemaining > 0) {
         my @targets = readTargets();
         if(scalar @targets != 4){
@@ -104,6 +105,7 @@ sub withinMargin {
 }
 
 sub readTargets{
+    print "Reading targets\n";
     my @targets = ();
     local $/; # enables "slurp" mode (see perldoc.perl.org/perlvar.html INPUT_RECORD_SEPARATOR)
     my $line = (split(/\n/, <STDIN>))[-1]; #split by endlines and grab the last
