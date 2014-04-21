@@ -17,6 +17,7 @@ my $pitch = 90;
 my $yaw = 90;
 my $flywheel = 0;
 
+print "Beginning command loop\n";
 commandLoop();
 
 # subroutine declarations
@@ -109,6 +110,7 @@ sub readTargets{
     my @targets = ();
     local $/; # enables "slurp" mode (see perldoc.perl.org/perlvar.html INPUT_RECORD_SEPARATOR)
     my $line = (split(/\n/, <STDIN>))[-1]; #split by endlines and grab the last
+    #my $line = <STDIN>;
     if(!defined($line)){ 
         return @targets;
     }
