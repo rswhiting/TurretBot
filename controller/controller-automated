@@ -63,11 +63,11 @@ sub commandLoop{
                     $shotsRemaining--;
                 }else{
                     $lastTargetLoc = $targets[0]; # center
-                    sleepMs(250); # wait to verify it is actually stable
+                    sleepMs(1000); # wait to verify it is actually stable
                 }
             }else{
                 adjustAim($targets[0], $target);
-                sleepMs(750);
+                sleepMs(2000);
             }
         }
     }
@@ -89,7 +89,7 @@ sub adjustAim {
     #print STDERR "search\n";
     #print "Aiming\n";
     my ($c, $t) = @_;
-    my $vidToServoRatio = 20;
+    my $vidToServoRatio = 30;
     print Dumper(@_);
     my $xDiff = $t->{x} - $c->{x};
     my $yDiff = $t->{y} - $c->{y};
