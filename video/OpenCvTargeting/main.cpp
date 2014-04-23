@@ -152,6 +152,7 @@ void printTargets(vector<Target> targets) {
     if (lastTargets != output) {
         lastTargets = output;
         cout << output;
+        cout.flush();
     }
 }
 

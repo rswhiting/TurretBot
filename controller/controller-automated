@@ -23,18 +23,19 @@ commandLoop();
 # subroutine declarations
 
 sub commandLoop{
+    sleep(10); #wait for video feed
     # Target variables
     my $shotsRemaining = 15;
     my $expectedTargets = 3;
     my $shotsPerTarget = 5;
     # Other ones
-    my $margin = 10;
+    my $margin = 5;
     my $lastTargetLoc = {x=>0,y=>0};
     my $isLost = 0;
     ReadMode('cbreak');
     $flywheel = 1;
     print "Start up the flywheel\n";
-    sendSerial("f");
+    sendSerial("s");
     while ($shotsRemaining > 0) {
         my @targets = readTargets();
         if(scalar @targets != 4){
@@ -61,11 +62,12 @@ sub commandLoop{
                     fire();
                     $shotsRemaining--;
                 }else{
+                    $lastTargetLoc = $targets[0]; # center
                     sleepMs(250); # wait to verify it is actually stable
                 }
             }else{
                 adjustAim($targets[0], $target);
-                sleepMs(500);
+                sleepMs(750);
             }
         }
     }
@@ -85,15 +87,30 @@ sub fire {
 
 sub adjustAim {
     #print STDERR "search\n";
+    #print "Aiming\n";
     my ($c, $t) = @_;
-    my $vidToServoRatio = 10;
-    #print Dumper(@_);
+    my $vidToServoRatio = 20;
+    print Dumper(@_);
     my $xDiff = $t->{x} - $c->{x};
     my $yDiff = $t->{y} - $c->{y};
-    $pitch += int($yDiff / $vidToServoRatio);
-    $yaw += int($xDiff / $vidToServoRatio);
+    print "xDiff: $xDiff\nyDiff: $yDiff\nxDiffR:".$xDiff/$vidToServoRatio."\nyDiffR:".$yDiff/$vidToServoRatio."\n";
+    $pitch += ($yDiff / $vidToServoRatio);
+    $pitch = checkBound($pitch, 76,120);
+    $yaw -= ($xDiff / $vidToServoRatio);
+    $yaw = checkBound($yaw, 65,115);
     sendSerial("${pitch}p");
     sendSerial("${yaw}y");
+}
+
+sub checkBound {
+    my ($x, $min, $max) = @_;
+    if($x < $min){
+        return int($min);
+    } elsif ($x > $max) {
+        return int($max);
+    }else{
+        return int($x);
+    }
 }
 
 sub withinMargin {
@@ -106,11 +123,11 @@ sub withinMargin {
 }
 
 sub readTargets{
-    print "Reading targets\n";
+    #print "Reading targets\n";
     my @targets = ();
-    local $/; # enables "slurp" mode (see perldoc.perl.org/perlvar.html INPUT_RECORD_SEPARATOR)
-    my $line = (split(/\n/, <STDIN>))[-1]; #split by endlines and grab the last
-    #my $line = <STDIN>;
+    my $line;
+    sysread(STDIN, $line, 4096); # read 4096 bytes
+    $line = (split /\n/, $line)[-1];
     if(!defined($line)){ 
         return @targets;
     }
@@ -119,6 +136,9 @@ sub readTargets{
         $targets[$i / 2]{x} = $nums[$i];
         $targets[$i / 2]{y} = $nums[$i + 1];
     }
+    my $center = shift(@targets);
+    @targets = sort {$a->{x} <=> $b->{x}} @targets;
+    unshift(@targets, $center);
     #print Dumper(@targets);
     return @targets;
 }

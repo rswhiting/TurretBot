@@ -9,8 +9,8 @@ my $base = $ARGV[0];
 my %files = ();
 while ( my $cmd = <STDIN> ) {
     chomp $cmd;
-    print "Audio command received for '$cmd'\n";
     if(-d "$base/turretsounds/$cmd"){
+        print "Audio command received for '$cmd'\n";
         unless ( defined $files{$cmd} && @{ $files{$cmd} } ) {
             $files{$cmd} = [ shuffle( glob "$base/turretsounds/$cmd/*.wav" ) ];
         }
