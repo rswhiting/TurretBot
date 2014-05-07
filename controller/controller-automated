@@ -29,7 +29,7 @@ sub commandLoop{
     my $expectedTargets = 3;
     my $shotsPerTarget = 5;
     # Other ones
-    my $margin = 5;
+    my $margin = 10;
     my $lastTargetLoc = {x=>0,y=>0};
     my $isLost = 0;
     ReadMode('cbreak');
@@ -57,12 +57,14 @@ sub commandLoop{
             my $target = $targets[$targetIndex];
             print "target selected: " . $target->{x} . ", " . $target->{y} . "\n";
             if(withinMargin($margin, $target, $targets[0])){
+                print "target found, stabalizing\n";
                 # stabalize
                 if(withinMargin($margin, $target, $lastTargetLoc)){
+                    print "firing\n";
                     fire();
                     $shotsRemaining--;
                 }else{
-                    $lastTargetLoc = $targets[0]; # center
+                    $lastTargetLoc = $target;
                     sleepMs(1000); # wait to verify it is actually stable
                 }
             }else{
@@ -89,17 +91,28 @@ sub adjustAim {
     #print STDERR "search\n";
     #print "Aiming\n";
     my ($c, $t) = @_;
-    my $vidToServoRatio = 30;
-    print Dumper(@_);
+    my $vidToServoRatio = 25;
+    #print Dumper(@_);
     my $xDiff = $t->{x} - $c->{x};
     my $yDiff = $t->{y} - $c->{y};
-    print "xDiff: $xDiff\nyDiff: $yDiff\nxDiffR:".$xDiff/$vidToServoRatio."\nyDiffR:".$yDiff/$vidToServoRatio."\n";
-    $pitch += ($yDiff / $vidToServoRatio);
+    #print "xDiff: $xDiff\nyDiff: $yDiff\nxDiffR:".$xDiff/$vidToServoRatio."\nyDiffR:".$yDiff/$vidToServoRatio."\n";
+    $pitch += roundServo(($yDiff / $vidToServoRatio));
     $pitch = checkBound($pitch, 76,120);
-    $yaw -= ($xDiff / $vidToServoRatio);
+    $yaw -= roundServo(($xDiff / $vidToServoRatio));
     $yaw = checkBound($yaw, 65,115);
     sendSerial("${pitch}p");
     sendSerial("${yaw}y");
+}
+
+sub roundServo {
+    my ($x) = @_;
+    if ($x < 0 && $x > -1){
+        return -1;
+    } elsif ($x > 0 && $x < 1){
+        return 1;
+    } else {
+        return int($x);
+    }
 }
 
 sub checkBound {
@@ -115,7 +128,10 @@ sub checkBound {
 
 sub withinMargin {
     my ($margin, $a, $b) = @_;
-    if(abs($a->{x} - $b->{x}) <= $margin && abs($a->{y} - $b->{y}) <= $margin){
+    my $xDiff = abs($a->{x} - $b->{x});
+    my $yDiff = abs($a->{y} - $b->{y});
+    print "Margin: x $xDiff y $yDiff\n";
+    if($xDiff < $margin && $yDiff < $margin){
         return 1;
     } else {
         return 0;
@@ -133,13 +149,26 @@ sub readTargets{
     }
     my @nums = split(/ /, $line);
     for(my $i = 0; $i < scalar @nums; $i += 2){
-        $targets[$i / 2]{x} = $nums[$i];
-        $targets[$i / 2]{y} = $nums[$i + 1];
+        if(length $nums[$i] && length $nums[$i + 1]){
+            $targets[$i / 2]{x} = $nums[$i];
+            $targets[$i / 2]{y} = $nums[$i + 1];
+        }else{
+            print "Invalid coordinates found\n";
+        }
     }
     my $center = shift(@targets);
     @targets = sort {$a->{x} <=> $b->{x}} @targets;
     unshift(@targets, $center);
+    @targets = adjustForDistance(@targets);
     #print Dumper(@targets);
+    return @targets;
+}
+
+sub adjustForDistance {
+    my (@targets) = @_;
+    $targets[1]{y} -= 50; # left target is far, aim up
+    $targets[2]{y} += 25; # center target is close, aim low
+    $targets[3]{y} += 0; # right target is medium, aim center
     return @targets;
 }
 

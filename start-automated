@@ -5,7 +5,7 @@ use warnings;
 
 #open(my $controller, "|../Pipes/controller") || die "Can't fork: $!";
 open(my $controller, "|./controller/controller-automated") || die "Can't fork: $!";
-open(my $sound, "|./audio/audio audio") || die "Can't fork: $!";
+open(my $sound, "|./audio/audio ./audio") || die "Can't fork: $!";
 open(STDOUT, ">&", $controller);
 open(STDERR, ">&", $sound);
 
