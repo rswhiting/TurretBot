@@ -1,0 +1,16 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use POSIX 'setsid';
+
+if (open(my $controller, "|-")) {
+	open(STDOUT, ">&", $controller);
+	exec "./video/video";
+}
+else {
+	setsid();
+	open(my $sound, "|./audio/audio ./audio") || die "Can't fork: $!";
+	open(STDERR, ">&", $sound);
+	exec "./controller/controller-automated";
+}
